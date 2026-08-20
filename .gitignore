@@ -28,3 +28,13 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 .venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local TTS models and generated audio
+models/tts/*.onnx
+models/tts/*.onnx.json
+models/tts/output/
+models/tts/*.wav
