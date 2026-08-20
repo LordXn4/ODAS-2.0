@@ -7,6 +7,9 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -41,9 +44,13 @@ jobs:
       - name: Build APK
         run: flutter build apk --debug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Publish APK Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: oda-hud-apk
-          path: oda_hud/build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
+          tag_name: hud-${{ github.run_number }}
+          name: ODA HUD ${{ github.run_number }}
+          body: |
+            ODA HUD 3D
+            Build automático do projeto ODAS-2.0.
+          files: oda_hud/build/app/outputs/flutter-apk/app-debug.apk
+          make_latest: true
