@@ -1,7 +1,10 @@
+import 'dart:async';
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 
 void main() {
   runApp(const OdaHudApp());
@@ -37,6 +40,8 @@ class _OdaHudState extends State<OdaHud>
     with SingleTickerProviderStateMixin {
   late final AnimationController controller;
   WebSocketChannel? socket;
+  final AudioRecorder recorder = AudioRecorder();
+  StreamSubscription<Amplitude>? amplitudeSubscription;
 
   OdaState state = OdaState.idle;
   double audioLevel = 0.0;
@@ -51,6 +56,49 @@ class _OdaHudState extends State<OdaHud>
     )..repeat();
 
     _connectHud();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    final permissions = await [
+      Permission.microphone,
+      Permission.notification,
+    ].request();
+
+    if (permissions[Permission.microphone]?.isGranted == true) {
+      await _startMicrophone();
+    }
+  }
+
+  Future<void> _startMicrophone() async {
+    try {
+      if (!await recorder.hasPermission()) return;
+
+      await recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: '',
+      );
+
+      amplitudeSubscription?.cancel();
+      amplitudeSubscription = recorder
+          .onAmplitudeChanged(const Duration(milliseconds: 80))
+          .listen((amplitude) {
+        if (!mounted) return;
+
+        final db = amplitude.current;
+        final normalized = db.isFinite
+            ? ((db + 60.0) / 60.0).clamp(0.0, 1.0)
+            : 0.0;
+
+        setState(() {
+          audioLevel = normalized;
+        });
+      });
+    } catch (_) {}
   }
 
   void _connectHud() {
@@ -110,6 +158,8 @@ class _OdaHudState extends State<OdaHud>
 
   @override
   void dispose() {
+    amplitudeSubscription?.cancel();
+    recorder.dispose();
     socket?.sink.close();
     controller.dispose();
     super.dispose();
