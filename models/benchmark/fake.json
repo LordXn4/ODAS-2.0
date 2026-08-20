@@ -1,0 +1,84 @@
+{
+  "model": "fake",
+  "summary": {
+    "average_latency_ms": 0.004836248990613967,
+    "min_latency_ms": 0.0036919955164194107,
+    "max_latency_ms": 0.007075956091284752,
+    "average_memory_mb": 10.75,
+    "max_memory_mb": 10.75
+  },
+  "results": [
+    {
+      "prompt_id": "pt_01",
+      "category": "conhecimento",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.007075956091284752,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_02",
+      "category": "explicação",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.004230998456478119,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_03",
+      "category": "raciocínio",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.00423000892624259,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_04",
+      "category": "instrução",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.00400003045797348,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_05",
+      "category": "contexto",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.0036919955164194107,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_06",
+      "category": "português",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.00423000892624259,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_07",
+      "category": "resumo",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.004230998456478119,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    },
+    {
+      "prompt_id": "pt_08",
+      "category": "comando",
+      "response": "Resposta de teste em português.",
+      "latency_ms": 0.006999995093792677,
+      "memory_before_mb": 10.75,
+      "memory_after_mb": 10.75,
+      "memory_delta_mb": 0.0
+    }
+  ]
+}
