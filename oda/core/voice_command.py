@@ -1,4 +1,5 @@
 from oda.audio.stt_adapter import STTCommandPipeline
+from oda.hud_state import hud
 
 
 class VoiceCommandHandler:
@@ -7,10 +8,12 @@ class VoiceCommandHandler:
     """
 
     def __init__(self, assistant, pipeline: STTCommandPipeline):
+        hud.start()
         self.assistant = assistant
         self.pipeline = pipeline
 
     def start(self) -> None:
+        hud.listening()
         self.pipeline.start_command()
 
     def process_audio(
@@ -18,12 +21,17 @@ class VoiceCommandHandler:
         audio: bytes,
         is_speech: bool,
     ):
+        hud.processing()
         text = self.pipeline.process(
             audio,
             is_speech,
         )
 
         if not text:
+            hud.idle()
             return None
 
-        return self.assistant.process(text)
+        try:
+            return self.assistant.process(text)
+        finally:
+            hud.idle()
