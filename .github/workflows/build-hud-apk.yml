@@ -42,7 +42,7 @@ jobs:
         run: flutter analyze
 
       - name: Build APK
-        run: flutter build apk --debug
+        run: flutter build apk --debug --build-number=${{ github.run_number }} --build-name=1.0.0
 
       - name: Publish APK Release
         uses: softprops/action-gh-release@v2
