@@ -74,14 +74,15 @@ class _OdaHudState extends State<OdaHud>
     try {
       if (!await recorder.hasPermission()) return;
 
-      await recorder.start(
+      await recorder.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
           numChannels: 1,
         ),
-        path: '',
       );
+
+      debugPrint('[MIC] captura iniciada');
 
       amplitudeSubscription?.cancel();
       amplitudeSubscription = recorder
@@ -94,11 +95,15 @@ class _OdaHudState extends State<OdaHud>
             ? ((db + 60.0) / 60.0).clamp(0.0, 1.0)
             : 0.0;
 
+        debugPrint('[MIC] dB=$db level=$normalized');
+
         setState(() {
           audioLevel = normalized;
         });
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[MIC] erro ao iniciar captura: $e');
+    }
   }
 
   void _connectHud() {
