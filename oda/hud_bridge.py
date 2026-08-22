@@ -9,13 +9,14 @@ except ImportError:
 
 
 class HudBridge:
-    def __init__(self, host="0.0.0.0", port=8765):
+    def __init__(self, host="0.0.0.0", port=8766):
         self.host = host
         self.port = port
         self.clients = set()
         self.state = "idle"
         self.audio_level = 0.0
         self.server = None
+        self.audio_callback = None
 
     async def _handler(self, websocket):
         self.clients.add(websocket)
@@ -27,11 +28,69 @@ class HudBridge:
                 "audio_level": self.audio_level,
             }))
 
-            async for _ in websocket:
-                pass
+            async for message in websocket:
+                # Flutter envia PCM como frame binário.
+                if isinstance(message, bytes):
+                    await self._handle_audio(message)
+                    continue
+
+                # Mensagens de controle continuam sendo aceitas como texto.
+                if isinstance(message, str):
+                    await self._handle_message(message)
 
         finally:
             self.clients.discard(websocket)
+
+    async def _handle_audio(self, audio: bytes):
+        if not audio:
+            return
+
+        # PCM esperado:
+        # 16-bit signed little-endian
+        # mono
+        # 16000 Hz
+        #
+        # O processamento real será conectado ao
+        # ODAVoiceRuntime no próximo passo.
+        print(f"[PCM] recebido: {len(audio)} bytes")
+
+        callback = getattr(self, "audio_callback", None)
+
+        if callback is None:
+            return
+
+        try:
+            result = callback(audio)
+
+            if asyncio.iscoroutine(result):
+                await result
+
+        except Exception as exc:
+            print(f"[PCM] erro no callback: {exc}")
+
+    async def _handle_message(self, message: str):
+        try:
+            data = json.loads(message)
+        except json.JSONDecodeError:
+            return
+
+        if data.get("type") == "state":
+            state = data.get("state")
+
+            if state in {"idle", "listening", "processing"}:
+                self.state = state
+
+        elif data.get("type") == "audio_level":
+            try:
+                self.audio_level = max(
+                    0.0,
+                    min(1.0, float(data.get("value", 0.0))),
+                )
+            except (TypeError, ValueError):
+                pass
+
+    def set_audio_callback(self, callback):
+        self.audio_callback = callback
 
     async def set_state(self, state):
         if state not in {"idle", "listening", "processing"}:

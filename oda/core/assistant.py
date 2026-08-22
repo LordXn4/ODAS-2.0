@@ -27,27 +27,56 @@ class ODAAssistant:
             or MockAccessibilityBridge()
         )
 
+        self.voice_volume = 1.0
+
         self._register_system_commands()
 
     def _register_system_commands(self):
-        self.commands.register(
-            "diagnóstico do sistema",
-            self.system_diagnosis,
-        )
+        commands = {
+            "diagnóstico do sistema": self.system_diagnosis,
+            "diagnostico do sistema": self.system_diagnosis,
 
-        self.commands.register(
-            "status da ram",
-            self.memory_status,
-        )
+            "status da ram": self.memory_status,
+            "status da memória": self.memory_status,
+            "status da memoria": self.memory_status,
+
+            "aumente o volume": self.volume_up,
+            "aumentar o volume": self.volume_up,
+            "aumente volume": self.volume_up,
+            "aumentar volume": self.volume_up,
+
+            "diminua o volume": self.volume_down,
+            "diminuir o volume": self.volume_down,
+            "diminua volume": self.volume_down,
+            "diminuir volume": self.volume_down,
+
+            "volume máximo": self.volume_max,
+            "volume maximo": self.volume_max,
+
+            "volume mínimo": self.volume_min,
+            "volume minimo": self.volume_min,
+
+            "pare de falar": self.stop_speaking,
+            "parar de falar": self.stop_speaking,
+            "pare a fala": self.stop_speaking,
+            "pare de falar oda": self.stop_speaking,
+
+            "olá oda": self.hello,
+            "ola oda": self.hello,
+            "oi oda": self.hello,
+            "oi": self.hello,
+        }
+
+        for name, handler in commands.items():
+            self.commands.register(name, handler)
 
     def system_diagnosis(self):
         health = self.system.diagnose()
 
         return (
             f"Estado: {health.level}. "
-            f"Uso de RAM: "
-            f"{health.memory.usage_percent}%."
-            f" {health.recommendation}"
+            f"Uso de RAM: {health.memory.usage_percent}%. "
+            f"{health.recommendation}"
         )
 
     def memory_status(self):
@@ -57,6 +86,60 @@ class ODAAssistant:
             f"RAM usada: {memory.used_mb} MB. "
             f"RAM disponível: {memory.available_mb} MB."
         )
+
+    def volume_up(self):
+        self.voice_volume = min(1.0, self.voice_volume + 0.1)
+
+        return {
+            "route": "command",
+            "action": "volume_up",
+            "volume": self.voice_volume,
+            "speech": f"Volume em {round(self.voice_volume * 100)} por cento.",
+        }
+
+    def volume_down(self):
+        self.voice_volume = max(0.0, self.voice_volume - 0.1)
+
+        return {
+            "route": "command",
+            "action": "volume_down",
+            "volume": self.voice_volume,
+            "speech": f"Volume em {round(self.voice_volume * 100)} por cento.",
+        }
+
+    def volume_max(self):
+        self.voice_volume = 1.0
+
+        return {
+            "route": "command",
+            "action": "volume_max",
+            "volume": self.voice_volume,
+            "speech": "Volume máximo.",
+        }
+
+    def volume_min(self):
+        self.voice_volume = 0.0
+
+        return {
+            "route": "command",
+            "action": "volume_min",
+            "volume": self.voice_volume,
+            "speech": "Volume mínimo.",
+        }
+
+    def stop_speaking(self):
+        return {
+            "route": "command",
+            "action": "stop_speaking",
+            "speech": "",
+        }
+
+    def hello(self):
+        return {
+            "route": "command",
+            "action": "hello",
+            "speech": "Olá. ODA online. Pode falar.",
+        }
 
     def open_app(self, app: str):
         installed = self.apps.find(app)
@@ -105,7 +188,17 @@ class ODAAssistant:
                 app_name = result.text.strip()[7:].strip()
                 return self.open_app(app_name)
 
-            return self.commands.execute(result.text)
+            command_result = self.commands.execute(result.text)
+
+            if command_result is not None:
+                return command_result
+
+            return {
+                "route": "command",
+                "action": "unknown",
+                "text": result.text,
+                "speech": "Não reconheci esse comando.",
+            }
 
         return {
             "route": "llm",

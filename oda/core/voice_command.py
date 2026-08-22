@@ -22,16 +22,17 @@ class VoiceCommandHandler:
         is_speech: bool,
     ):
         hud.processing()
+
         text = self.pipeline.process(
             audio,
             is_speech,
         )
 
         if not text:
-            hud.idle()
             return None
 
         try:
             return self.assistant.process(text)
         finally:
             hud.idle()
+            self.pipeline.recorder.session.reset()

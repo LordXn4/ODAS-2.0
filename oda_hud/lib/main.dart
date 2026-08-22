@@ -6,6 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const OdaHudApp());
@@ -43,7 +44,9 @@ class _OdaHudState extends State<OdaHud>
   WebSocketChannel? socket;
   final AudioRecorder recorder = AudioRecorder();
   final FlutterTts tts = FlutterTts();
+  static const MethodChannel voiceChannel = MethodChannel('odas/voice');
   StreamSubscription<Amplitude>? amplitudeSubscription;
+  StreamSubscription<Uint8List>? audioSubscription;
 
   OdaState state = OdaState.idle;
   double audioLevel = 0.0;
@@ -76,7 +79,7 @@ class _OdaHudState extends State<OdaHud>
     try {
       if (!await recorder.hasPermission()) return;
 
-      await recorder.startStream(
+      final audioStream = await recorder.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
@@ -85,6 +88,21 @@ class _OdaHudState extends State<OdaHud>
       );
 
       debugPrint('[MIC] captura iniciada');
+
+        audioSubscription?.cancel();
+        audioSubscription = audioStream.listen(
+          (Uint8List pcm) {
+            try {
+              socket?.sink.add(pcm);
+              debugPrint('[PCM] enviado: ${pcm.length} bytes');
+            } catch (e) {
+              debugPrint('[PCM] erro ao enviar: $e');
+            }
+          },
+          onError: (error) {
+            debugPrint('[PCM] erro no stream: $error');
+          },
+        );
 
       amplitudeSubscription?.cancel();
       amplitudeSubscription = recorder
@@ -111,7 +129,7 @@ class _OdaHudState extends State<OdaHud>
   void _connectHud() {
     try {
       socket = WebSocketChannel.connect(
-        Uri.parse('ws://192.168.18.4:8765'),
+        Uri.parse('ws://192.168.18.4:8766'),
       );
 
       socket!.stream.listen(
@@ -163,9 +181,22 @@ class _OdaHudState extends State<OdaHud>
     } catch (_) {}
   }
 
+  Future<void> speak(String text) async {
+    if (text.trim().isEmpty) return;
+
+    try {
+      await voiceChannel.invokeMethod('speak', {
+        'text': text,
+      });
+    } catch (e) {
+      debugPrint('[TTS] erro: $e');
+    }
+  }
+
   @override
   void dispose() {
     amplitudeSubscription?.cancel();
+    audioSubscription?.cancel();
     recorder.dispose();
     socket?.sink.close();
     controller.dispose();
@@ -173,6 +204,7 @@ class _OdaHudState extends State<OdaHud>
   }
 
   void nextState() {
+    speak('Olá, eu sou o ODA.');
     setState(() {
       switch (state) {
         case OdaState.idle:
