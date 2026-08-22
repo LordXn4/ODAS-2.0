@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
 void main() {
   runApp(const OdaHudApp());
@@ -42,7 +41,6 @@ class _OdaHudState extends State<OdaHud>
   late final AnimationController controller;
   WebSocketChannel? socket;
   final AudioRecorder recorder = AudioRecorder();
-  final FlutterTts tts = FlutterTts();
   StreamSubscription<Amplitude>? amplitudeSubscription;
 
   OdaState state = OdaState.idle;
@@ -433,22 +431,22 @@ class OdaHudPainter extends CustomPainter {
   double get intensity {
     switch (state) {
       case OdaState.idle:
-        return 0.55 + audioLevel * 0.15;
+        return 0.30 + (audioLevel * 0.35);
       case OdaState.listening:
-        return 0.85 + audioLevel * 0.35;
+        return 1.00 + (audioLevel * 1.20);
       case OdaState.processing:
-        return 1.10 + audioLevel * 0.25;
+        return 1.35 + (audioLevel * 0.80);
     }
   }
 
   double get motion {
     switch (state) {
       case OdaState.idle:
-        return 0.22;
+        return 0.45;
       case OdaState.listening:
-        return 0.65;
+        return 1.25;
       case OdaState.processing:
-        return 1.05;
+        return 1.80;
     }
   }
 
@@ -468,20 +466,16 @@ class OdaHudPainter extends CustomPainter {
     _orbits(canvas, center, radius);
     _wave(canvas, center, radius);
     _core(canvas, center, radius);
-
-    if (state == OdaState.processing) {
-      _avatarFrame(canvas, center, radius);
-    }
   }
 
   void _background(Canvas canvas, Size size) {
     final shader = const RadialGradient(
       colors: [
-        Color(0xFF18052B),
+        Color(0xFF21083A),
         Color(0xFF080311),
         Color(0xFF010106),
       ],
-      stops: [0, .45, 1],
+      stops: [0, .42, 1],
     ).createShader(
       Rect.fromCenter(
         center: Offset(size.width / 2, size.height / 2),
@@ -496,8 +490,8 @@ class OdaHudPainter extends CustomPainter {
     );
 
     final grid = Paint()
-      ..color = const Color(0xFF29103D)
-      ..strokeWidth = .25;
+      ..color = const Color(0xFF32134A)
+      ..strokeWidth = .3;
 
     for (double x = 0; x < size.width; x += 32) {
       canvas.drawLine(
@@ -524,29 +518,26 @@ class OdaHudPainter extends CustomPainter {
     for (int i = 0; i < 110; i++) {
       final angle =
           i * 2.399963 +
-          progress * motion * (i.isEven ? .95 : -.70);
+          progress *
+              motion *
+              (i.isEven ? .95 : -.70);
 
-      final baseDistance =
-          radius * (.58 + ((i * 47) % 100) / 190);
-
-      final audioOffset =
-          audioLevel * radius * .055 * math.sin(i * 1.7);
-
-      final distance = baseDistance + audioOffset;
+      final distance =
+          radius * (.55 + ((i * 47) % 100) / 180);
 
       final x = center.dx + math.cos(angle) * distance;
       final y =
           center.dy + math.sin(angle) * distance * .58;
 
       final particleSize =
-          .45 + ((i * 17) % 6) * .28;
+          .4 + ((i * 17) % 6) * .3;
 
       final alpha =
-          (.10 + (i % 5) * .065) * intensity;
+          (.12 + (i % 5) * .08) * intensity;
 
       final paint = Paint()
         ..color = const Color(0xFFC77DFF)
-            .withValues(alpha: alpha.clamp(0.0, .75));
+            .withValues(alpha: alpha.clamp(0.0, 1.0));
 
       canvas.drawCircle(
         Offset(x, y),
@@ -563,17 +554,17 @@ class OdaHudPainter extends CustomPainter {
   ) {
     final paint = Paint()
       ..color = const Color(0xFFA64DFF)
-          .withValues(alpha: .13 * intensity)
-      ..strokeWidth = .55;
+          .withValues(alpha: .16 * intensity)
+      ..strokeWidth = .6;
 
     for (int i = 0; i < 48; i++) {
       final angle =
           i * math.pi * 2 / 48 +
-          progress * math.pi * 2 * .18;
+          progress * math.pi * 2;
 
-      final inner = radius * .74;
+      final inner = radius * .72;
       final outer =
-          radius * (.90 + (i % 4) * .035);
+          radius * (.9 + (i % 4) * .035);
 
       canvas.drawLine(
         Offset(
@@ -602,53 +593,34 @@ class OdaHudPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = .8
+      ..strokeWidth = 1
       ..color = const Color(0xFFB35CFF)
-          .withValues(alpha: .22 * intensity);
+          .withValues(alpha: .28 * intensity);
 
     canvas.drawOval(rect, paint);
 
     paint
-      ..strokeWidth = 1.6
+      ..strokeWidth = 2
       ..color = const Color(0xFFD09AFF)
-          .withValues(alpha: .62);
+          .withValues(alpha: .75);
 
-    final start =
-        progress * math.pi * 2 * .35;
+    final start = progress * math.pi * 2;
 
     canvas.drawArc(
       rect,
       start,
-      math.pi * .38,
+      math.pi * .48,
       false,
       paint,
     );
 
     canvas.drawArc(
       rect,
-      start + math.pi * 1.18,
-      math.pi * .18,
+      start + math.pi,
+      math.pi * .22,
       false,
       paint,
     );
-
-    for (int i = 0; i < 8; i++) {
-      final a =
-          progress * math.pi * 2 * .12 +
-          i * math.pi / 4;
-
-      final p1 = Offset(
-        center.dx + math.cos(a) * radius * 1.18,
-        center.dy + math.sin(a) * radius * .66,
-      );
-
-      final p2 = Offset(
-        center.dx + math.cos(a) * radius * 1.25,
-        center.dy + math.sin(a) * radius * .70,
-      );
-
-      canvas.drawLine(p1, p2, paint);
-    }
   }
 
   void _orbits(
@@ -657,7 +629,7 @@ class OdaHudPainter extends CustomPainter {
     double radius,
   ) {
     for (int i = 0; i < 5; i++) {
-      final r = radius * (.40 + i * .105);
+      final r = radius * (.42 + i * .105);
 
       final rect = Rect.fromCenter(
         center: center,
@@ -667,11 +639,9 @@ class OdaHudPainter extends CustomPainter {
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = i == 2 ? 1.25 : .55
+        ..strokeWidth = i == 2 ? 1.5 : .65
         ..color = const Color(0xFFB963FF)
-            .withValues(
-              alpha: (.15 + i * .025) * intensity,
-            );
+            .withValues(alpha: (.18 + i * .035) * intensity);
 
       canvas.save();
 
@@ -682,7 +652,7 @@ class OdaHudPainter extends CustomPainter {
             math.pi *
             2 *
             (i.isEven ? 1 : -1) *
-            (0.45 + i * .07),
+            (1 + i * .08),
       );
 
       canvas.translate(-center.dx, -center.dy);
@@ -691,28 +661,24 @@ class OdaHudPainter extends CustomPainter {
 
       canvas.restore();
 
+      // orbiting node
       final nodeAngle =
-          progress *
-              math.pi *
-              2 *
-              (i + 1) *
-              .45 +
+          progress * math.pi * 2 * (i + 1) +
           i * 1.7;
 
       final nodeX =
           center.dx + math.cos(nodeAngle) * r;
 
       final nodeY =
-          center.dy +
-          math.sin(nodeAngle) * r * .56;
+          center.dy + math.sin(nodeAngle) * r * .56;
 
       final nodePaint = Paint()
         ..color = const Color(0xFFE0B6FF)
-            .withValues(alpha: .72);
+            .withValues(alpha: .85);
 
       canvas.drawCircle(
         Offset(nodeX, nodeY),
-        i == 2 ? 2.5 : 1.7,
+        i == 2 ? 3 : 2,
         nodePaint,
       );
     }
@@ -724,6 +690,7 @@ class OdaHudPainter extends CustomPainter {
     double radius,
   ) {
     final path = Path();
+
     const points = 220;
 
     for (int i = 0; i <= points; i++) {
@@ -732,19 +699,16 @@ class OdaHudPainter extends CustomPainter {
 
       final wave =
           math.sin(
-            angle * 8 +
-                progress * math.pi * 12 * motion,
-          ) *
-          (1.5 + intensity * 3.0 + audioLevel * 8.0);
+                angle * 8 +
+                    progress * math.pi * 18 * motion,
+              ) *
+              (3 + intensity * 15 + audioLevel * 35);
 
-      final r = radius * .30 + wave;
+      final r = radius * .38 + wave;
 
-      final x =
-          center.dx + math.cos(angle) * r;
-
+      final x = center.dx + math.cos(angle) * r;
       final y =
-          center.dy +
-          math.sin(angle) * r * .56;
+          center.dy + math.sin(angle) * r * .56;
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -755,15 +719,9 @@ class OdaHudPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth =
-          state == OdaState.idle ? 1.0 : 1.35
+      ..strokeWidth = 2
       ..color = const Color(0xFFD6A4FF)
-          .withValues(
-            alpha:
-                state == OdaState.idle
-                    ? .40
-                    : .58,
-          );
+          .withValues(alpha: .7);
 
     canvas.drawPath(path, paint);
   }
@@ -773,47 +731,38 @@ class OdaHudPainter extends CustomPainter {
     Offset center,
     double radius,
   ) {
-    final baseRadius = radius * .115;
-
-    final subtlePulse =
+    final pulse =
         math.sin(
-          progress *
-              math.pi *
-              2 *
-              motion,
-        ) *
-        radius *
-        .012;
+              progress *
+                  math.pi *
+                  2 *
+                  motion,
+            ) *
+            (5 + intensity * 8 + audioLevel * 18);
 
-    final r = baseRadius + subtlePulse;
+    final r = radius * (.21 + audioLevel * .60) + pulse;
 
     final glow = Paint()
       ..shader = RadialGradient(
         colors: [
           const Color(0xFFF2DDFF)
-              .withValues(alpha: .40),
+              .withValues(alpha: .95),
           const Color(0xFFC45CFF)
-              .withValues(alpha: .22),
+              .withValues(alpha: .58),
           const Color(0xFF7B16B2)
-              .withValues(alpha: .10),
+              .withValues(alpha: .22),
           Colors.transparent,
-        ],
-        stops: const [
-          0,
-          .20,
-          .55,
-          1,
         ],
       ).createShader(
         Rect.fromCircle(
           center: center,
-          radius: r * 4.8,
+          radius: r * 3.2,
         ),
       );
 
     canvas.drawCircle(
       center,
-      r * 4.8,
+      r * 3.2,
       glow,
     );
 
@@ -825,12 +774,7 @@ class OdaHudPainter extends CustomPainter {
           Color(0xFFB13FFF),
           Color(0xFF351047),
         ],
-        stops: [
-          0,
-          .18,
-          .55,
-          1,
-        ],
+        stops: [0, .18, .52, 1],
       ).createShader(
         Rect.fromCircle(
           center: center,
@@ -844,74 +788,40 @@ class OdaHudPainter extends CustomPainter {
       core,
     );
 
-    final halo = Paint()
+    final inner = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = .8
-      ..color = const Color(0xFFE9C9FF)
-          .withValues(alpha: .60);
+      ..strokeWidth = 1.5
+      ..color = Colors.white
+          .withValues(alpha: .8);
 
     canvas.drawCircle(
       center,
-      r * 1.55,
-      halo,
+      r * .7,
+      inner,
     );
 
-    final arc = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(0xFFC45CFF)
-          .withValues(alpha: .65);
+    final cross = Paint()
+      ..color = const Color(0xFFE7C8FF)
+          .withValues(alpha: .65)
+      ..strokeWidth = .7;
 
-    final arcRect = Rect.fromCircle(
-      center: center,
-      radius: r * 2.05,
+    canvas.drawLine(
+      Offset(center.dx - r * 1.45, center.dy),
+      Offset(center.dx + r * 1.45, center.dy),
+      cross,
     );
 
-    canvas.drawArc(
-      arcRect,
-      progress * math.pi * 2,
-      math.pi * .72,
-      false,
-      arc,
+    canvas.drawLine(
+      Offset(center.dx, center.dy - r * 1.45),
+      Offset(center.dx, center.dy + r * 1.45),
+      cross,
     );
-
-    canvas.drawArc(
-      arcRect,
-      progress * math.pi * 2 + math.pi,
-      math.pi * .32,
-      false,
-      arc,
-    );
-  }
-
-  void _avatarFrame(
-    Canvas canvas,
-    Offset center,
-    double radius,
-  ) {
-    final rect = Rect.fromCenter(
-      center: center,
-      width: radius * 1.05,
-      height: radius * 1.30,
-    );
-
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = .45
-      ..color = const Color(0xFFD8A8FF)
-          .withValues(alpha: .10);
-
-    canvas.drawOval(rect, paint);
   }
 
   @override
-  bool shouldRepaint(
-    covariant OdaHudPainter oldDelegate,
-  ) {
+  bool shouldRepaint(covariant OdaHudPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.state != state ||
         oldDelegate.audioLevel != audioLevel;
   }
 }
-

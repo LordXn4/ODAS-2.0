@@ -38,3 +38,7 @@ models/tts/*.onnx
 models/tts/*.onnx.json
 models/tts/output/
 models/tts/*.wav
+
+# Local Python environment
+.venv-whisper/
+.venv/

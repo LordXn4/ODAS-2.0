@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
 void main() {
   runApp(const OdaHudApp());
@@ -42,7 +41,6 @@ class _OdaHudState extends State<OdaHud>
   late final AnimationController controller;
   WebSocketChannel? socket;
   final AudioRecorder recorder = AudioRecorder();
-  final FlutterTts tts = FlutterTts();
   StreamSubscription<Amplitude>? amplitudeSubscription;
 
   OdaState state = OdaState.idle;
