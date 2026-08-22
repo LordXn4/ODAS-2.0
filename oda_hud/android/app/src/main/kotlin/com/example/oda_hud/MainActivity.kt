@@ -6,7 +6,7 @@ import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.android.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.Locale
 
