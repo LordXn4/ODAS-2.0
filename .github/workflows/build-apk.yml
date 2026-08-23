@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,7 +42,38 @@ jobs:
         working-directory: oda_hud
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Prepare release files
+        run: |
+          VERSION="${GITHUB_SHA}"
+          APK="oda_hud/build/app/outputs/flutter-apk/app-release.apk"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+
+          mkdir -p release
+
+          cp "$APK" "release/oda-${VERSION}.apk"
+
+          cat > release/update.json <<EOF
+          {
+            "version": "${VERSION}",
+            "url": "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/oda-${VERSION}.apk",
+            "sha256": "${SHA256}",
+            "channel": "stable"
+          }
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.sha }}
+          name: ODA ${{ github.sha }}
+          generate_release_notes: true
+          files: |
+            release/oda-*.apk
+            release/update.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: oda-hud-release
