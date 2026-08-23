@@ -1,28 +1,24 @@
 import math
-
 from oda.audio.interfaces import VoiceActivityDetector
 
 
 class SimpleVAD(VoiceActivityDetector):
     """
-    VAD básico baseado na energia RMS do áudio PCM16.
+    VAD RMS simples com limiar configurável.
 
-    Serve como fallback/teste.
-    O VAD real poderá substituir esta implementação
-    sem alterar o AudioPipeline.
+    O valor padrão foi aumentado para evitar que o ruído
+    ambiente seja interpretado como fala.
     """
 
-    def __init__(self, threshold: int = 500):
+    def __init__(self, threshold: int = 1500):
         self.threshold = threshold
 
     def is_speech(self, audio: bytes) -> bool:
-        if not audio:
+        if not audio or len(audio) % 2 != 0:
             return False
 
-        if len(audio) % 2 != 0:
-            return False
-
-        samples = []
+        total = 0
+        count = 0
 
         for i in range(0, len(audio), 2):
             sample = int.from_bytes(
@@ -30,14 +26,12 @@ class SimpleVAD(VoiceActivityDetector):
                 byteorder="little",
                 signed=True,
             )
-            samples.append(sample)
+            total += sample * sample
+            count += 1
 
-        if not samples:
+        if count == 0:
             return False
 
-        energy = math.sqrt(
-            sum(sample * sample for sample in samples)
-            / len(samples)
-        )
+        energy = math.sqrt(total / count)
 
         return energy >= self.threshold

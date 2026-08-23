@@ -30,6 +30,46 @@ class Router:
         "status da ram",
         "status da memória",
         "status da memoria",
+
+        # Volume
+        "aumente o volume",
+        "aumentar o volume",
+        "aumente volume",
+        "aumentar volume",
+        "diminua o volume",
+        "diminuir o volume",
+        "diminua volume",
+        "diminuir volume",
+        "volume máximo",
+        "volume maximo",
+        "volume mínimo",
+        "volume minimo",
+
+        # Assistente
+        "olá oda",
+        "ola oda",
+        "oi oda",
+        "oi",
+        "que horas são",
+        "que horas sao",
+
+        # Mídia
+        "pausar música",
+        "pausar musica",
+        "pause a música",
+        "pause a musica",
+        "continuar música",
+        "continuar musica",
+        "continue a música",
+        "continue a musica",
+        "próxima música",
+        "proxima musica",
+        "próxima faixa",
+        "proxima faixa",
+        "música anterior",
+        "musica anterior",
+        "voltar a música",
+        "voltar a musica",
     }
 
     def route(self, text: str) -> RouteResult:

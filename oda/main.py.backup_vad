@@ -42,7 +42,7 @@ async def main():
     # --------------------------------------------------------
     # VAD
     # --------------------------------------------------------
-    vad = SimpleVAD(threshold=1500)
+    vad = SimpleVAD(threshold=500)
 
     # --------------------------------------------------------
     # HUD / WebSocket
@@ -54,16 +54,6 @@ async def main():
             return
 
         is_speech = vad.is_speech(audio)
-
-        samples = [
-            int.from_bytes(audio[i:i + 2], byteorder="little", signed=True)
-            for i in range(0, len(audio) - 1, 2)
-        ]
-        energy = (
-            sum(sample * sample for sample in samples) / len(samples)
-        ) ** 0.5 if samples else 0.0
-
-        print(f"[VAD] speech={is_speech} energy={energy:.1f}")
 
         result = runtime.process_audio(
             audio,
