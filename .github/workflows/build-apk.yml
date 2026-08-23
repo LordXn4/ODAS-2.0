@@ -1,8 +1,9 @@
-name: Build APK
+name: Build ODA APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -22,19 +23,24 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.44.8'
           channel: stable
           cache: true
 
-      - name: Install dependencies
+      - name: Flutter pub get
         working-directory: oda_hud
         run: flutter pub get
 
+      - name: Analyze
+        working-directory: oda_hud
+        run: flutter analyze
+
       - name: Build APK
         working-directory: oda_hud
-        run: flutter build apk --release --target-platform android-arm64
+        run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: oda-hud-apk
+          name: oda-hud-release
           path: oda_hud/build/app/outputs/flutter-apk/app-release.apk
