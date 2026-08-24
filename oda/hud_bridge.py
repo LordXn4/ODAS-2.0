@@ -89,6 +89,87 @@ class HudBridge:
             except (TypeError, ValueError):
                 pass
 
+        elif data.get("type") == "update_check":
+            await self._handle_update_check()
+
+        elif data.get("type") == "update":
+            await self._handle_update()
+
+    async def _send_message(self, data):
+        if not self.clients:
+            return
+
+        message = json.dumps(data, ensure_ascii=False)
+        disconnected = set()
+
+        for client in self.clients:
+            try:
+                await client.send(message)
+            except Exception:
+                disconnected.add(client)
+
+        self.clients.difference_update(disconnected)
+
+    async def _handle_update_check(self):
+        try:
+            from oda.updater import UpdateManager
+
+            manager = UpdateManager()
+            manifest = await asyncio.to_thread(manager.check)
+
+            if manifest is None:
+                await self._send_message({
+                    "type": "update_result",
+                    "available": False,
+                    "message": "O ODAS já está atualizado.",
+                })
+                return
+
+            await self._send_message({
+                "type": "update_result",
+                "available": True,
+                "version": str(manifest.get("version", "")),
+                "message": "Nova atualização disponível.",
+            })
+
+        except Exception as exc:
+            await self._send_message({
+                "type": "update_error",
+                "operation": "check",
+                "message": str(exc),
+            })
+
+    async def _handle_update(self):
+        try:
+            from oda.updater import UpdateManager
+
+            manager = UpdateManager()
+
+            await self._send_message({
+                "type": "update_progress",
+                "message": "Atualizando ODAS...",
+            })
+
+            updated = await asyncio.to_thread(manager.update)
+
+            await self._send_message({
+                "type": "update_result",
+                "available": False,
+                "updated": bool(updated),
+                "message": (
+                    "ODAS atualizado com sucesso."
+                    if updated
+                    else "Nenhuma atualização disponível."
+                ),
+            })
+
+        except Exception as exc:
+            await self._send_message({
+                "type": "update_error",
+                "operation": "update",
+                "message": str(exc),
+            })
+
     def set_audio_callback(self, callback):
         self.audio_callback = callback
 

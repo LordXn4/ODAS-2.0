@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -45,6 +46,16 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
 
   OdaState state = OdaState.idle;
   double audioLevel = 0.0;
+
+  bool voiceEnabled = true;
+  double voiceVolume = 1.0;
+  double voiceRate = 0.5;
+  bool hudAnimations = true;
+  double hudIntensity = 1.0;
+
+  bool checkingUpdate = false;
+  bool updatingOdas = false;
+  String updateMessage = 'Atualização não verificada.';
 
   @override
   void initState() {
@@ -146,6 +157,49 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
               });
             }
 
+            try {
+              final jsonData = jsonDecode(data);
+
+              if (jsonData is Map<String, dynamic>) {
+                if (jsonData['type'] == 'update_result') {
+                  if (!mounted) return;
+
+                  setState(() {
+                    checkingUpdate = false;
+                    updatingOdas = false;
+
+                    if (jsonData['available'] == true) {
+                      updateMessage =
+                          'Nova versão disponível: ${jsonData['version'] ?? ''}';
+                    } else {
+                      updateMessage =
+                          jsonData['message']?.toString() ??
+                          'ODAS está atualizado.';
+                    }
+                  });
+                } else if (jsonData['type'] == 'update_progress') {
+                  if (!mounted) return;
+
+                  setState(() {
+                    checkingUpdate = false;
+                    updatingOdas = true;
+                    updateMessage =
+                        jsonData['message']?.toString() ??
+                        'Atualizando ODAS...';
+                  });
+                } else if (jsonData['type'] == 'update_error') {
+                  if (!mounted) return;
+
+                  setState(() {
+                    checkingUpdate = false;
+                    updatingOdas = false;
+                    updateMessage =
+                        'Erro na atualização: ${jsonData['message'] ?? 'desconhecido'}';
+                  });
+                }
+              }
+            } catch (_) {}
+
             if (data.contains('"state":"listening"')) {
               setState(() {
                 state = OdaState.listening;
@@ -195,7 +249,7 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
   }
 
   void nextState() {
-    speak('Olá, eu sou o ODA.');
+    if (voiceEnabled) speak('Olá, eu sou o ODAS.');
     setState(() {
       switch (state) {
         case OdaState.idle:
@@ -307,43 +361,254 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
     );
   }
 
+  void _checkForUpdates() {
+    if (checkingUpdate || updatingOdas) return;
+
+    setState(() {
+      checkingUpdate = true;
+      updateMessage = 'Verificando atualização...';
+    });
+
+    try {
+      socket?.sink.add(jsonEncode({
+        'type': 'update_check',
+      }));
+    } catch (e) {
+      setState(() {
+        checkingUpdate = false;
+        updateMessage = 'Falha ao verificar: $e';
+      });
+    }
+  }
+
+  void _updateOdas() {
+    if (updatingOdas) return;
+
+    setState(() {
+      updatingOdas = true;
+      updateMessage = 'Iniciando atualização...';
+    });
+
+    try {
+      socket?.sink.add(jsonEncode({
+        'type': 'update',
+      }));
+    } catch (e) {
+      setState(() {
+        updatingOdas = false;
+        updateMessage = 'Falha ao iniciar atualização: $e';
+      });
+    }
+  }
+
   void _openSettings() {
     showDialog<void>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF090612),
-          title: const Text(
-            'Configurações',
-            style: TextStyle(color: Color(0xFFD7B5FF)),
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ODAS',
-                style: TextStyle(
-                  color: Color(0xFFB86CFF),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF090612),
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.settings,
+                    color: Color(0xFFD7B5FF),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Configurações',
+                    style: TextStyle(
+                      color: Color(0xFFD7B5FF),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 430,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'VOZ DO ODAS',
+                        style: TextStyle(
+                          color: Color(0xFFB96EFF),
+                          fontSize: 11,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Voz ativada',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        subtitle: const Text(
+                          'Permitir que o ODAS fale',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                        value: voiceEnabled,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            voiceEnabled = value;
+                          });
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Volume',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      Slider(
+                        value: voiceVolume,
+                        min: 0,
+                        max: 1,
+                        divisions: 10,
+                        label: '${(voiceVolume * 100).round()}%',
+                        onChanged: (value) {
+                          setDialogState(() {
+                            voiceVolume = value;
+                          });
+                          setState(() {});
+                        },
+                      ),
+                      const Text(
+                        'Velocidade da fala',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      Slider(
+                        value: voiceRate,
+                        min: 0.25,
+                        max: 1.0,
+                        divisions: 15,
+                        label: voiceRate.toStringAsFixed(2),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            voiceRate = value;
+                          });
+                          setState(() {});
+                        },
+                      ),
+                      const Divider(color: Colors.white12),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'HUD',
+                        style: TextStyle(
+                          color: Color(0xFFB96EFF),
+                          fontSize: 11,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Animações',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        value: hudAnimations,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            hudAnimations = value;
+                          });
+                          setState(() {});
+                        },
+                      ),
+                      const Text(
+                        'Intensidade visual',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      Slider(
+                        value: hudIntensity,
+                        min: 0.2,
+                        max: 1.0,
+                        divisions: 8,
+                        label: '${(hudIntensity * 100).round()}%',
+                        onChanged: (value) {
+                          setDialogState(() {
+                            hudIntensity = value;
+                          });
+                          setState(() {});
+                        },
+                      ),
+                      const Divider(color: Colors.white12),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'ATUALIZAÇÕES',
+                        style: TextStyle(
+                          color: Color(0xFFB96EFF),
+                          fontSize: 11,
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.system_update,
+                          color: Color(0xFFD7B5FF),
+                        ),
+                        title: const Text(
+                          'Verificar atualização',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        subtitle: const Text(
+                          'Verificar se existe uma nova versão do ODAS',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                        onTap: checkingUpdate || updatingOdas
+                            ? null
+                            : () {
+                                _checkForUpdates();
+                                setDialogState(() {});
+                              },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          updateMessage,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.download,
+                          color: Color(0xFFD7B5FF),
+                        ),
+                        title: const Text(
+                          'Atualizar ODAS',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        subtitle: const Text(
+                          'Instalar uma atualização disponível',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                        onTap: updatingOdas
+                            ? null
+                            : () {
+                                _updateOdas();
+                                setDialogState(() {});
+                              },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              SizedBox(height: 12),
-              Text(
-                'Configurações do HUD e atualização do sistema.',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('FECHAR'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('FECHAR'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
