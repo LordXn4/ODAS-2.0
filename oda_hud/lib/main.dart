@@ -263,7 +263,7 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'ODA',
+            'ODAS',
             style: TextStyle(
               fontSize: 25,
               fontWeight: FontWeight.w300,
@@ -271,16 +271,81 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
               color: Color(0xFFD7B5FF),
             ),
           ),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              letterSpacing: 4,
-              color: Color(0xFFB86CFF),
-            ),
+          Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 4,
+                  color: Color(0xFFB86CFF),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: const Color(0xFFB86CFF),
+                    width: 1,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  tooltip: 'Configurações',
+                  icon: const Icon(
+                    Icons.settings,
+                    color: Color(0xFFD7B5FF),
+                    size: 22,
+                  ),
+                  onPressed: _openSettings,
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  void _openSettings() {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF090612),
+          title: const Text(
+            'Configurações',
+            style: TextStyle(color: Color(0xFFD7B5FF)),
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ODAS',
+                style: TextStyle(
+                  color: Color(0xFFB86CFF),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Configurações do HUD e atualização do sistema.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('FECHAR'),
+            ),
+          ],
+        );
+      },
     );
   }
 
