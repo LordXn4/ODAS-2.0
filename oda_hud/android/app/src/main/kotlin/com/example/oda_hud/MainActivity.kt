@@ -19,6 +19,7 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
 
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
+    private var pendingSpeech: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +38,11 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
 
             textToSpeech?.setSpeechRate(1.0f)
             textToSpeech?.setPitch(1.0f)
+
+            pendingSpeech?.let { pending ->
+                pendingSpeech = null
+                speak(pending)
+            }
         }
     }
 
@@ -120,14 +126,31 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun speak(text: String) {
-        if (!ttsReady) return
+        if (text.isBlank()) return
 
-        textToSpeech?.speak(
+        if (!ttsReady || textToSpeech == null) {
+            pendingSpeech = text
+            return
+        }
+
+        val status = textToSpeech?.speak(
             text,
             TextToSpeech.QUEUE_FLUSH,
             null,
             "ODAS_RESPONSE"
         )
+
+        if (status == TextToSpeech.ERROR) {
+            android.util.Log.e(
+                "ODAS_TTS",
+                "Falha ao executar TTS"
+            )
+        } else {
+            android.util.Log.i(
+                "ODAS_TTS",
+                "Falando: $text"
+            )
+        }
     }
 
     private fun startOdaService() {
