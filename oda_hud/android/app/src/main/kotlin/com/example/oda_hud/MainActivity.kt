@@ -4,6 +4,13 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import androidx.core.content.FileProvider
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -15,6 +22,7 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
     companion object {
         private const val CHANNEL = "odas/background"
         private const val VOICE_CHANNEL = "odas/voice"
+        private const val UPDATE_CHANNEL = "odas/update"
     }
 
     private var textToSpeech: TextToSpeech? = null
@@ -74,6 +82,35 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
             }
         }
 
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            UPDATE_CHANNEL
+        ).setMethodCallHandler { call, result ->
+
+            when (call.method) {
+
+                "downloadAndInstall" -> {
+                    val url = call.argument<String>("url")
+
+                    if (url.isNullOrBlank()) {
+                        result.error(
+                            "EMPTY_URL",
+                            "URL do APK vazia.",
+                            null
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    downloadAndInstall(url, result)
+                }
+
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             VOICE_CHANNEL
@@ -123,6 +160,91 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
                 }
             }
         }
+    }
+
+
+    private fun downloadAndInstall(
+        apkUrl: String,
+        result: MethodChannel.Result
+    ) {
+        Thread {
+            var connection: HttpURLConnection? = null
+
+            try {
+                val url = URL(apkUrl)
+                connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 15000
+                connection.readTimeout = 30000
+                connection.requestMethod = "GET"
+                connection.instanceFollowRedirects = true
+                connection.connect()
+
+                if (connection.responseCode !in 200..299) {
+                    throw Exception(
+                        "Download HTTP ${connection.responseCode}"
+                    )
+                }
+
+                val apkFile = File(
+                    cacheDir,
+                    "odas-update.apk"
+                )
+
+                connection.inputStream.use { input ->
+                    apkFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                if (!apkFile.exists() || apkFile.length() <= 0) {
+                    throw Exception("APK baixado está vazio.")
+                }
+
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        val uri: Uri = FileProvider.getUriForFile(
+                            this,
+                            "${packageName}.fileprovider",
+                            apkFile
+                        )
+
+                        val intent = Intent(
+                            Intent.ACTION_VIEW
+                        ).apply {
+                            setDataAndType(
+                                uri,
+                                "application/vnd.android.package-archive"
+                            )
+                            addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        }
+
+                        startActivity(intent)
+                        result.success(true)
+
+                    } catch (e: Exception) {
+                        result.error(
+                            "INSTALL_ERROR",
+                            e.message,
+                            null
+                        )
+                    }
+                }
+
+            } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post {
+                    result.error(
+                        "DOWNLOAD_ERROR",
+                        e.message,
+                        null
+                    )
+                }
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
     }
 
     private fun speak(text: String) {

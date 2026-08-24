@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -41,6 +42,11 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
   final AudioRecorder recorder = AudioRecorder();
   final FlutterTts tts = FlutterTts();
   static const MethodChannel voiceChannel = MethodChannel('odas/voice');
+  static const MethodChannel updateChannel = MethodChannel('odas/update');
+
+  static const String updateManifestUrl =
+      'https://github.com/LordXn4/ODAS-2.0/releases/latest/download/update.json';
+
   StreamSubscription<Amplitude>? amplitudeSubscription;
   StreamSubscription<Uint8List>? audioSubscription;
 
@@ -361,7 +367,7 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
     );
   }
 
-  void _checkForUpdates() {
+  Future<void> _checkForUpdates() async {
     if (checkingUpdate || updatingOdas) return;
 
     setState(() {
@@ -369,35 +375,146 @@ class _OdaHudState extends State<OdaHud> with SingleTickerProviderStateMixin {
       updateMessage = 'Verificando atualização...';
     });
 
+    HttpClient? client;
+
     try {
-      socket?.sink.add(jsonEncode({
-        'type': 'update_check',
-      }));
-    } catch (e) {
+      client = HttpClient();
+      final request = await client.getUrl(
+        Uri.parse(updateManifestUrl),
+      );
+
+      request.followRedirects = true;
+
+      final response = await request.close();
+
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Manifesto HTTP ${response.statusCode}',
+        );
+      }
+
+      final body = await response.transform(utf8.decoder).join();
+      final jsonData = jsonDecode(body);
+
+      if (jsonData is! Map<String, dynamic>) {
+        throw Exception('Manifesto inválido.');
+      }
+
+      final version = jsonData['version']?.toString() ?? '';
+      final apkUrl = jsonData['url']?.toString() ?? '';
+
+      if (version.isEmpty || apkUrl.isEmpty) {
+        throw Exception('Manifesto sem versão ou URL do APK.');
+      }
+
+      if (!mounted) return;
+
       setState(() {
         checkingUpdate = false;
-        updateMessage = 'Falha ao verificar: $e';
+        updateMessage =
+            'Nova versão disponível: $version';
       });
+
+      debugPrint('[UPDATE] versão disponível: $version');
+      debugPrint('[UPDATE] APK: $apkUrl');
+
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        checkingUpdate = false;
+        updateMessage =
+            'Falha ao verificar: $e';
+      });
+
+      debugPrint('[UPDATE] erro: $e');
+
+    } finally {
+      client?.close(force: true);
     }
   }
 
-  void _updateOdas() {
+  Future<void> _updateOdas() async {
     if (updatingOdas) return;
 
     setState(() {
       updatingOdas = true;
-      updateMessage = 'Iniciando atualização...';
+      updateMessage = 'Obtendo atualização...';
     });
 
+    HttpClient? client;
+
     try {
-      socket?.sink.add(jsonEncode({
-        'type': 'update',
-      }));
-    } catch (e) {
+      client = HttpClient();
+
+      final request = await client.getUrl(
+        Uri.parse(updateManifestUrl),
+      );
+
+      request.followRedirects = true;
+
+      final response = await request.close();
+
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Manifesto HTTP ${response.statusCode}',
+        );
+      }
+
+      final body = await response
+          .transform(utf8.decoder)
+          .join();
+
+      final jsonData = jsonDecode(body);
+
+      if (jsonData is! Map<String, dynamic>) {
+        throw Exception('Manifesto inválido.');
+      }
+
+      final apkUrl = jsonData['url']?.toString() ?? '';
+      final version = jsonData['version']?.toString() ?? '';
+
+      if (apkUrl.isEmpty) {
+        throw Exception('URL do APK ausente.');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        updateMessage =
+            'Baixando ODAS ${version.isEmpty ? '' : version}...';
+      });
+
+      final installed =
+          await updateChannel.invokeMethod<bool>(
+        'downloadAndInstall',
+        {
+          'url': apkUrl,
+        },
+      );
+
+      if (!mounted) return;
+
       setState(() {
         updatingOdas = false;
-        updateMessage = 'Falha ao iniciar atualização: $e';
+        updateMessage = installed == true
+            ? 'APK baixado. Confirme a instalação no Android.'
+            : 'Falha ao iniciar instalação.';
       });
+
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        updatingOdas = false;
+        updateMessage =
+            'Falha na atualização: $e';
+      });
+
+      debugPrint('[UPDATE] erro: $e');
+
+    } finally {
+      client?.close(force: true);
     }
   }
 
